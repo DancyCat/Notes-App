@@ -1,0 +1,1 @@
+### Xin chào, cảm ơn bạn vì đã sử dụng ứng dụng của chúng tôi, quảng cáo chỉ hiện thị một phần, không quá khó khăn cho người dùng. Nếu bạn vẫn thấy quảng cáo hơi khó chịu, bạn có thể ủng hộ nhà phát triển bằng cách quyên góp một phần nhỏ vào chiếc ví của tôi, sau khi bạn quyên góp, quảng cáo sẽ lập tức không hiện thị nữa.
