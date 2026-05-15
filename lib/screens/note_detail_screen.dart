@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/note.dart';
 import '../providers/note_provider.dart';
 import '../i18n/strings.g.dart';
+
 class NoteDetailScreen extends StatefulWidget {
   final Note note;
 
@@ -28,7 +30,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     super.initState();
     _titleController = TextEditingController();
     _contentController = TextEditingController();
-
     _titleController.addListener(_checkForChanges);
     _contentController.addListener(_checkForChanges);
   }
@@ -62,7 +63,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     if (_isEditing) {
       final changed = (_titleController.text.trim() != _originalTitle.trim() ||
           _contentController.text.trim() != _originalContent.trim());
-
       if (_hasChanges != changed) {
         setState(() {
           _hasChanges = changed;
@@ -91,7 +91,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
-      return false; // Lỗi validation
+      return false;
     }
 
     noteProvider.updateNote(
@@ -111,7 +111,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       ),
     );
 
-    return true; // Lưu thành công
+    return true;
   }
 
   void _discardChanges() {
@@ -129,7 +129,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       context: context,
       builder: (BuildContext dialogContext) {
         bool dialogIsSaving = false;
-
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
@@ -137,11 +136,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
               content: Text(t.note_detail_screen.dialog_content_save_confirm),
               actions: <Widget>[
                 TextButton(
-                  onPressed: dialogIsSaving
-                      ? null
-                      : () {
-                          Navigator.of(dialogContext).pop(false);
-                        },
+                  onPressed: dialogIsSaving ? null : () => Navigator.of(dialogContext).pop(false),
                   child: Text(t.note_detail_screen.dialog_cancel_button),
                 ),
                 FilledButton.tonal(
@@ -157,15 +152,11 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                   onPressed: dialogIsSaving
                       ? null
                       : () async {
-                          setStateDialog(() {
-                            dialogIsSaving = true;
-                          });
+                          setStateDialog(() => dialogIsSaving = true);
                           await Future.delayed(const Duration(milliseconds: 550));
-
                           final saveSuccess = await _saveChangesLogic();
-
+                          if (!dialogContext.mounted) return;
                           Navigator.of(dialogContext).pop(saveSuccess);
-
                           if (saveSuccess) {
                             setState(() {
                               _isEditing = false;
@@ -177,11 +168,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                           }
                         },
                   child: dialogIsSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : Text(t.note_detail_screen.dialog_ok_button),
                 ),
               ],
@@ -205,11 +192,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                 content: Text(t.note_detail_screen.dialog_content_exit_confirm),
                 actions: <Widget>[
                   TextButton(
-                    onPressed: dialogIsSaving
-                        ? null
-                        : () {
-                            Navigator.of(dialogContext).pop(false);
-                          },
+                    onPressed: dialogIsSaving ? null : () => Navigator.of(dialogContext).pop(false),
                     child: Text(t.note_detail_screen.dialog_cancel_button),
                   ),
                   FilledButton.tonal(
@@ -225,15 +208,11 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                     onPressed: dialogIsSaving
                         ? null
                         : () async {
-                            setStateDialog(() {
-                              dialogIsSaving = true;
-                            });
+                            setStateDialog(() => dialogIsSaving = true);
                             await Future.delayed(const Duration(milliseconds: 550));
-
                             final saveSuccess = await _saveChangesLogic();
-
+                            if (!dialogContext.mounted) return;
                             Navigator.of(dialogContext).pop(saveSuccess);
-
                             if (saveSuccess) {
                               setState(() {
                                 _isEditing = false;
@@ -245,11 +224,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                             }
                           },
                     child: dialogIsSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : Text(t.note_detail_screen.dialog_ok_button),
                   ),
                 ],
@@ -283,19 +258,23 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
 
     final textTheme = Theme.of(context).textTheme;
 
-    return WillPopScope(
-      onWillPop: () async {
-        return await _showExitConfirmationDialog();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        final shouldPop = await _showExitConfirmationDialog();
+        if (shouldPop) context.pop();
       },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
+              final navigator = Navigator.of(context);
               final shouldPop = await _showExitConfirmationDialog();
-              if (shouldPop) {
-                Navigator.of(context).pop();
-              }
+              if (!mounted) return;
+              if (shouldPop) context.pop();
             },
           ),
           title: _isEditing ? Text(t.note_detail_screen.edit_note_title) : const Text(''),
@@ -312,9 +291,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                     _discardChanges();
                   }
                 } else {
-                  setState(() {
-                    _isLoadingEditMode = true;
-                  });
+                  setState(() => _isLoadingEditMode = true);
                   await Future.delayed(const Duration(milliseconds: 250));
                   setState(() {
                     _isLoadingEditMode = false;
@@ -338,9 +315,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                     _isEditing
                         ? TextField(
                             controller: _titleController,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                             decoration: InputDecoration(
                               labelText: t.note_detail_screen.title_label,
                               hintText: t.note_detail_screen.title_hint,
@@ -354,9 +329,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                           )
                         : Text(
                             currentNote.title,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                             maxLines: null,
                           ),
                     const SizedBox(height: 8),
@@ -368,17 +341,13 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                     const Divider(height: 32, thickness: 1.0),
                     Text(
                       t.note_detail_screen.content_label,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     _isEditing
                         ? TextField(
                             controller: _contentController,
-                            style: textTheme.bodyLarge?.copyWith(
-                              height: 1.5,
-                            ),
+                            style: textTheme.bodyLarge?.copyWith(height: 1.5),
                             decoration: InputDecoration(
                               border: OutlineInputBorder(),
                               hintText: t.note_detail_screen.content_hint,
@@ -388,14 +357,14 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                             keyboardType: TextInputType.multiline,
                           )
                         : (currentNote.content.trim().isEmpty
-                            ? Column( // Bọc trong Column để thêm SizedBox
+                            ? Column(
                                 children: [
-                                  const SizedBox(height: 200.0), // THAY ĐỔI: Tăng khoảng trống lên 100px
+                                  const SizedBox(height: 200.0),
                                   Center(
                                     child: Text(
                                       t.note_detail_screen.no_content_placeholder,
                                       style: textTheme.bodyLarge?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                                       ),
                                     ),
                                   ),
@@ -403,9 +372,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                               )
                             : Text(
                                 currentNote.content,
-                                style: textTheme.bodyLarge?.copyWith(
-                                  height: 1.5,
-                                ),
+                                style: textTheme.bodyLarge?.copyWith(height: 1.5),
                               )),
                   ],
                 ),
