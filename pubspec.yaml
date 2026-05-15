@@ -1,5 +1,5 @@
-name: Notes
-description: "A new Flutter project."
+name: notes_app
+description: "A simple and open-source notes app built with Flutter."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.0-278.1.beta
+  sdk: ">=3.8.0 <4.0.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -32,8 +32,7 @@ dependencies:
     sdk: flutter
   provider: ^6.1.2             # Dành cho State Management
   shared_preferences: ^2.2.3   # Dành cho Lưu trữ dữ liệu
-  google_fonts: ^6.2.1         # (Tùy chọn) Để có font chữ đẹp hơn
-  intl: any                # (Tùy chọn) Để định dạng ngày tháng
+  intl: ^0.20.2                # (Tùy chọn) Để định dạng ngày tháng
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -41,6 +40,8 @@ dependencies:
   package_info_plus: ^8.0.0
   slang: ^4.7.2
   slang_flutter: ^4.7.0
+  go_router: ^17.2.3
+  animations: ^2.2.0
 
 dev_dependencies:
   flutter_test:
