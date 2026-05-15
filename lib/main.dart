@@ -1,18 +1,18 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/note_provider.dart';
 import 'providers/theme_provider.dart';
-import 'screens/home_screen.dart';
+import 'utils/app_router.dart';
 import 'i18n/strings.g.dart';
 
 Future<String> getInitialLanguage() async {
   final prefs = await SharedPreferences.getInstance();
   final savedLang = prefs.getString('app_language');
   if (savedLang == null || savedLang == 'sys') {
-    String deviceLang = window.locale.languageCode;
+    String deviceLang =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     if (deviceLang != 'vi' && deviceLang != 'en') {
       deviceLang = 'en';
     }
@@ -25,7 +25,16 @@ Future<String> getInitialLanguage() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Thiết lập ngôn ngữ ban đầu dựa trên thiết bị hoặc SharedPreferences
+  // FIX: Lock orientation — tránh layout thrashing khi xoay máy
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // FIX: Edge-to-edge — Flutter không cần tính toán lại layout khi system bars thay đổi
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // Thiết lập ngôn ngữ ban đầu
   final initialLanguage = await getInitialLanguage();
   if (initialLanguage == 'vi') {
     LocaleSettings.setLocale(AppLocale.vi);
@@ -45,7 +54,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sử dụng MultiProvider để cung cấp nhiều trạng thái cho ứng dụng
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
@@ -53,13 +61,13 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          return MaterialApp(
+          return MaterialApp.router(
+            routerConfig: appRouter,
             title: 'Note',
-            debugShowCheckedModeBanner: false,
+            debugShowCheckedModeBanner: true,
             themeMode: themeProvider.themeMode,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
-            home: const HomeScreen(),
           );
         },
       ),
@@ -67,13 +75,10 @@ class MyApp extends StatelessWidget {
   }
 
   ThemeData _buildTheme(Brightness brightness) {
-    final baseTheme = ThemeData(
+    return ThemeData(
       brightness: brightness,
       colorSchemeSeed: Colors.indigo,
       useMaterial3: true,
-    );
-    return baseTheme.copyWith(
-      textTheme: GoogleFonts.latoTextTheme(baseTheme.textTheme),
     );
   }
 }

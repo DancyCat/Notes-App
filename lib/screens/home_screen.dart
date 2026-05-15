@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/note_provider.dart';
 import '../widgets/add_note_sheet.dart';
 import '../widgets/note_card.dart';
-import 'settings.dart';
 import '../i18n/strings.g.dart';
 
-// Chuyển HomeScreen thành StatefulWidget
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -15,16 +14,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isSearching = false; // Trạng thái để biết có đang tìm kiếm hay không
+  bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-  String _searchText = ""; // Từ khóa tìm kiếm hiện tại
+  String _searchText = '';
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() {
       setState(() {
-        _searchText = _searchController.text; // Cập nhật từ khóa tìm kiếm khi người dùng gõ
+        _searchText = _searchController.text;
       });
     });
   }
@@ -33,80 +32,74 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-}
+  }
 
   @override
   Widget build(BuildContext context) {
-    final t = Translations.of(context); // Lấy biến dịch theo context
-    // Lấy NoteProvider để có thể lọc ghi chú
-    final noteProvider = Provider.of<NoteProvider>(context);
-
-    // Lọc danh sách ghi chú dựa trên từ khóa tìm kiếm (chỉ tìm trong tiêu đề)
-    final filteredNotes = _searchText.isEmpty
-        ? noteProvider.notes
-        : noteProvider.notes.where((note) {
-            return note.title.toLowerCase().contains(_searchText.toLowerCase());
-          }).toList();
+    final t = Translations.of(context);
+    // Cache colorScheme tránh gọi lại nhiều lần trong build
+    final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return Scaffold(
       appBar: AppBar(
-        // Hiển thị TextField khi đang tìm kiếm, ngược lại hiển thị tiêu đề
         title: _isSearching
             ? TextField(
                 controller: _searchController,
-                autofocus: true, // Tự động focus khi mở tìm kiếm
+                autofocus: true,
                 decoration: InputDecoration(
                   hintText: t.home_screen.search_hint,
-                  border: InputBorder.none, // Bỏ đường viền
-                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(
+                    color: onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18),
-                onChanged: (value) {
-                  // _searchText đã được cập nhật bởi listener của _searchController
-                  // Không cần setState ở đây vì listener đã làm điều đó
-                },
+                style: TextStyle(color: onSurface, fontSize: 18),
+                onChanged: (_) {},
               )
             : Text(t.app_name),
         actions: [
-          // Nút tìm kiếm / Đóng tìm kiếm
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
                 if (!_isSearching) {
-                  _searchController.clear(); // Xóa từ khóa khi đóng tìm kiếm
-                  _searchText = ""; // Đảm bảo từ khóa tìm kiếm được reset
-                  FocusScope.of(context).unfocus(); // Ẩn bàn phím
+                  _searchController.clear();
+                  _searchText = '';
+                  FocusScope.of(context).unfocus();
                 }
               });
             },
           ),
-          // Nút Cài đặt (vẫn giữ nguyên)
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SettingsScreen()),
-              );
-            },
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
+      // FIX: Chỉ dùng Consumer — bỏ Provider.of ở ngoài
+      // Trước đây dùng cả 2 → screen rebuild 2 lần mỗi khi notes thay đổi
       body: Consumer<NoteProvider>(
         builder: (context, noteProvider, child) {
           if (noteProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          // Sử dụng filteredNotes thay vì noteProvider.notes
+
+          final filteredNotes = _searchText.isEmpty
+              ? noteProvider.notes
+              : noteProvider.notes.where((note) {
+                  return note.title
+                      .toLowerCase()
+                      .contains(_searchText.toLowerCase());
+                }).toList();
+
           if (filteredNotes.isEmpty) {
-            // Hiển thị thông báo khác nhau tùy thuộc vào trạng thái tìm kiếm
             return Center(
               child: Text(
                 _searchText.isEmpty
-                ? t.home_screen.no_notes_empty_state
-                : t.home_screen.no_notes_found_search.replaceAll('{searchText}', _searchText),
+                    ? t.home_screen.no_notes_empty_state
+                    : t.home_screen.no_notes_found_search
+                        .replaceAll('{searchText}', _searchText),
               ),
             );
           }
@@ -115,8 +108,9 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16.0),
             itemCount: filteredNotes.length,
             itemBuilder: (context, index) {
-              final note = filteredNotes[index];
-              return NoteCard(note: note);
+              return RepaintBoundary(
+                child: NoteCard(note: filteredNotes[index]),
+              );
             },
           );
         },

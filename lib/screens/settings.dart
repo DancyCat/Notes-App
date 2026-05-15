@@ -1,13 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/theme_provider.dart';
-import 'about_app_screen.dart';
 import '../i18n/strings.g.dart';
 
-// Chuyển SettingsScreen thành StatefulWidget để quản lý trạng thái ngôn ngữ
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -16,9 +14,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final Uri _githubUrl = Uri.parse('https://github.com/NguyenHienNg/Notes-App');
-  // Giá trị ngôn ngữ được chọn: có thể là "en", "vi", hoặc "sys" (mặc định hệ thống)
-  String _selectedLanguageCode = "sys";
+  final Uri _githubUrl = Uri.parse('https://github.com/Dancycat/Notes-App');
+  String _selectedLanguageCode = 'sys';
 
   @override
   void initState() {
@@ -26,36 +23,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSelectedLanguage();
   }
 
-  // Hàm tải ngôn ngữ đã chọn từ SharedPreferences
   void _loadSelectedLanguage() async {
     final prefs = await SharedPreferences.getInstance();
     final savedLang = prefs.getString('app_language');
+    if (!mounted) return;
     setState(() {
       _selectedLanguageCode = savedLang ?? 'sys';
     });
-    // Nếu lưu là hệ thống, lấy ngôn ngữ của hệ thống
     if (_selectedLanguageCode == 'sys') {
-      String deviceLang = window.locale.languageCode;
-      if (deviceLang != 'vi' && deviceLang != 'en') {
-        deviceLang = 'en';
-      }
-      if (deviceLang == 'vi') {
-        LocaleSettings.setLocale(AppLocale.vi);
-      } else {
-        LocaleSettings.setLocale(AppLocale.en);
-      }
+      String deviceLang =
+          WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+      if (deviceLang != 'vi' && deviceLang != 'en') deviceLang = 'en';
+      LocaleSettings.setLocale(
+          deviceLang == 'vi' ? AppLocale.vi : AppLocale.en);
     } else {
-      // Nếu lưu là "vi" hoặc "en"
-      if (_selectedLanguageCode == 'vi') {
-        LocaleSettings.setLocale(AppLocale.vi);
-      } else {
-        LocaleSettings.setLocale(AppLocale.en);
-      }
+      LocaleSettings.setLocale(
+          _selectedLanguageCode == 'vi' ? AppLocale.vi : AppLocale.en);
     }
   }
 
   Future<void> _launchUrl(Uri url, BuildContext context) async {
     if (!await launchUrl(url)) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Cannot open link: $url'),
@@ -65,86 +54,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // Hàm hiển thị sheet chọn ngôn ngữ
   void _showLanguageSelectionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                t.settings_screen.language_selection_sheet_title,
-                style: Theme.of(ctx).textTheme.headlineSmall,
+        return RadioGroup<String>(
+          groupValue: _selectedLanguageCode,
+          onChanged: (String? value) async {
+            if (value != null) {
+              setState(() => _selectedLanguageCode = value);
+              if (value == 'sys') {
+                String deviceLang = WidgetsBinding
+                    .instance.platformDispatcher.locale.languageCode;
+                if (deviceLang != 'vi' && deviceLang != 'en') deviceLang = 'en';
+                LocaleSettings.setLocale(
+                    deviceLang == 'vi' ? AppLocale.vi : AppLocale.en);
+              } else {
+                LocaleSettings.setLocale(
+                    value == 'vi' ? AppLocale.vi : AppLocale.en);
+              }
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('app_language', value);
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  t.settings_screen.language_selection_sheet_title,
+                  style: Theme.of(ctx).textTheme.headlineSmall,
+                ),
               ),
-            ),
-            RadioListTile<String>(
-              title: Text(t.settings_screen.language_system), // Bạn cần đảm bảo đã thêm chuỗi này vào strings.g.dart
-              value: 'sys',
-              groupValue: _selectedLanguageCode,
-              onChanged: (String? value) async {
-                if (value != null) {
-                  setState(() {
-                    _selectedLanguageCode = value;
-                  });
-                  // Lấy ngôn ngữ của hệ thống
-                  String deviceLang = window.locale.languageCode;
-                  if (deviceLang != 'vi' && deviceLang != 'en') {
-                    deviceLang = 'en';
-                  }
-                  if (deviceLang == 'vi') {
-                    LocaleSettings.setLocale(AppLocale.vi);
-                  } else {
-                    LocaleSettings.setLocale(AppLocale.en);
-                  }
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('app_language', value);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-            RadioListTile<String>(
-              title: Text(t.settings_screen.language_vietnamese),
-              value: 'vi',
-              groupValue: _selectedLanguageCode,
-              onChanged: (String? value) async {
-                if (value != null) {
-                  setState(() {
-                    _selectedLanguageCode = value;
-                  });
-                  LocaleSettings.setLocale(AppLocale.vi);
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('app_language', value);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-            RadioListTile<String>(
-              title: Text(t.settings_screen.language_english),
-              value: 'en',
-              groupValue: _selectedLanguageCode,
-              onChanged: (String? value) async {
-                if (value != null) {
-                  setState(() {
-                    _selectedLanguageCode = value;
-                  });
-                  LocaleSettings.setLocale(AppLocale.en);
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('app_language', value);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+              RadioListTile<String>(
+                title: Text(t.settings_screen.language_system),
+                value: 'sys',
+              ),
+              RadioListTile<String>(
+                title: Text(t.settings_screen.language_vietnamese),
+                value: 'vi',
+              ),
+              RadioListTile<String>(
+                title: Text(t.settings_screen.language_english),
+                value: 'en',
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         );
       },
     );
   }
 
-  // Hàm helper để lấy tên hiển thị ngôn ngữ dựa trên code
   String _getLanguageName(String code) {
     switch (code) {
       case 'sys':
@@ -158,13 +122,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // FIX: Cache textTheme + colorScheme trong method thay vì gọi Theme.of() nhiều lần
   Widget _buildSectionHeader(BuildContext context, String title) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.primary,
           fontWeight: FontWeight.normal,
         ),
       ),
@@ -178,25 +144,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
+    // FIX: Cache theme một lần thay vì gọi Theme.of(context) 3-4 lần
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
+
     return ListTile(
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
+      title: Text(title, style: textTheme.titleMedium),
       subtitle: subtitle != null
           ? Padding(
               padding: const EdgeInsets.only(top: 4.0),
               child: Text(
                 subtitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.normal,
-                    ),
+                style: textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.normal,
+                ),
               ),
             )
           : null,
@@ -210,51 +175,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                t.settings_screen.theme_selection_sheet_title,
-                style: Theme.of(ctx).textTheme.headlineSmall,
+        return RadioGroup<ThemeMode>(
+          groupValue: themeProvider.themeMode,
+          onChanged: (ThemeMode? value) {
+            if (value != null) {
+              themeProvider.setThemeMode(value);
+              Navigator.pop(ctx);
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  t.settings_screen.theme_selection_sheet_title,
+                  style: Theme.of(ctx).textTheme.headlineSmall,
+                ),
               ),
-            ),
-            RadioListTile<ThemeMode>(
-              title: Text(t.settings_screen.theme_system),
-              value: ThemeMode.system,
-              groupValue: themeProvider.themeMode,
-              onChanged: (ThemeMode? value) {
-                if (value != null) {
-                  themeProvider.setThemeMode(value);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-            RadioListTile<ThemeMode>(
-              title: Text(t.settings_screen.theme_light),
-              value: ThemeMode.light,
-              groupValue: themeProvider.themeMode,
-              onChanged: (ThemeMode? value) {
-                if (value != null) {
-                  themeProvider.setThemeMode(value);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-            RadioListTile<ThemeMode>(
-              title: Text(t.settings_screen.theme_dark),
-              value: ThemeMode.dark,
-              groupValue: themeProvider.themeMode,
-              onChanged: (ThemeMode? value) {
-                if (value != null) {
-                  themeProvider.setThemeMode(value);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+              RadioListTile<ThemeMode>(
+                title: Text(t.settings_screen.theme_system),
+                value: ThemeMode.system,
+              ),
+              RadioListTile<ThemeMode>(
+                title: Text(t.settings_screen.theme_light),
+                value: ThemeMode.light,
+              ),
+              RadioListTile<ThemeMode>(
+                title: Text(t.settings_screen.theme_dark),
+                value: ThemeMode.dark,
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         );
       },
     );
@@ -281,8 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
           children: [
             const SizedBox(height: 8.0),
             _buildSectionHeader(context, t.settings_screen.section_appearance),
@@ -321,18 +273,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: t.settings_screen.report_bug_subtitle,
               onTap: () => _launchUrl(_githubUrl, context),
             ),
+            // FIX: Dùng go_router thay vì MaterialPageRoute
             _buildSettingsItem(
               context,
               title: t.settings_screen.about_app_title,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AboutAppScreen()),
-                );
-              },
+              onTap: () => context.push('/settings/about'),
             ),
-            const SizedBox(height: 0),
           ],
         ),
       ),
